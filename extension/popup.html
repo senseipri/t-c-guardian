@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    /* ===== Reset & Base ===== */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      width: 380px;
+      min-height: 160px;
+      padding: 16px;
+      background: #f8f9fb;
+      color: #1a1a2e;
+    }
+
+    /* ===== Header ===== */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .header h1 {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    /* ===== Scan Button ===== */
+    .scan-btn {
+      width: 100%;
+      padding: 11px 16px;
+      background: #0f172a;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .scan-btn:hover { background: #1e293b; }
+    .scan-btn:active { transform: scale(0.98); }
+    .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ===== Loading ===== */
+    .loading {
+      display: none;
+      text-align: center;
+      margin-top: 20px;
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+
+    .loading .spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto 10px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== Score Card ===== */
+    .score-card {
+      display: none;
+      text-align: center;
+      margin: 16px 0 12px;
+      padding: 18px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .grade-display {
+      font-size: 3.2rem;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .score-text {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 6px;
+    }
+
+    .summary-text {
+      font-size: 0.82rem;
+      color: #64748b;
+      line-height: 1.45;
+    }
+
+    /* ===== Findings List ===== */
+    .findings-container { margin-top: 6px; }
+
+    .findings-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 8px;
+      display: none;
+    }
+
+    .finding-card {
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      background: #fff;
+      border-radius: 8px;
+      border-left: 4px solid #e2e8f0;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+      transition: transform 0.15s;
+      cursor: default;
+    }
+
+    .finding-card:hover { transform: translateX(2px); }
+
+    .finding-card .badge-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .severity-badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .severity-badge.critical { background: #fef2f2; color: #dc2626; }
+    .severity-badge.high     { background: #fff7ed; color: #ea580c; }
+    .severity-badge.medium   { background: #fefce8; color: #ca8a04; }
+    .severity-badge.low      { background: #f0fdf4; color: #16a34a; }
+
+    .category-label {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    .finding-text {
+      font-size: 0.82rem;
+      color: #334155;
+      line-height: 1.5;
+    }
+
+    /* Border colors per severity */
+    .finding-card.border-critical { border-left-color: #ef4444; }
+    .finding-card.border-high     { border-left-color: #f97316; }
+    .finding-card.border-medium   { border-left-color: #eab308; }
+    .finding-card.border-low      { border-left-color: #22c55e; }
+
+    /* ===== Error ===== */
+    .error-msg {
+      display: none;
+      text-align: center;
+      margin-top: 16px;
+      padding: 12px;
+      background: #fef2f2;
+      color: #dc2626;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <span style="font-size: 1.4rem;">🛡️</span>
+    <h1>T&C Guardian</h1>
+  </div>
+
+  <!-- Scan Button -->
+  <button class="scan-btn" id="scanBtn">Scan This Page</button>
+
+  <!-- Loading Spinner -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div>Analyzing legal clauses…</div>
+  </div>
+
+  <!-- Score Card -->
+  <div class="score-card" id="scoreCard">
+    <div class="grade-display" id="gradeDisplay">–</div>
+    <div class="score-text" id="scoreDisplay">Safety Score: –/100</div>
+    <div class="summary-text" id="summaryDisplay"></div>
+  </div>
+
+  <!-- Findings -->
+  <div class="findings-container">
+    <div class="findings-title" id="findingsTitle">⚠️ Harmful Clauses Found</div>
+    <div id="findingsList"></div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-msg" id="errorMsg"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

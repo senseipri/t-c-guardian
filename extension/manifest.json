@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "T&C Guardian",
+  "version": "1.0",
+  "description": "AI-powered Terms of Service analyzer. Scans any webpage for harmful legal clauses.",
+  "permissions": ["activeTab"],
+  "host_permissions": ["http://localhost:8000/*"],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
