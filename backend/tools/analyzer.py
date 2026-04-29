@@ -40,12 +40,13 @@ Text to analyze:
 """
 
 def analyze_legal_text(markdown: str) -> dict:
-    prompt = _ANALYSIS_PROMPT.format(text=markdown)
+    prompt = _ANALYSIS_PROMPT.replace("{text}", markdown)
 
     response = client.chat.completions.create(
-        model="deepseek-r1-distill-llama-70b",
+        model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.2,
+        response_format={"type": "json_object"},
     )
 
     raw_text = response.choices[0].message.content
