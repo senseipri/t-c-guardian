@@ -6,53 +6,67 @@ Markdown text of the page content. It strips navigation, footers,
 cookie banners, and excessive whitespace.
 
 Key design decisions:
+  - Uses Crawl4AI's AsyncWebCrawler which runs a real headless browser
+    (Playwright/Chromium) so sites that block simple HTTP clients with
+    403 errors are handled transparently.
   - word_count_threshold=10 filters out empty or boilerplate blocks
-  - remove_overlay_elements=True strips cookie consent popups
   - Content is capped at 100k characters to stay within LLM context limits
-  - We use the async crawler so FastAPI's event loop is never blocked
+  - The crawler runs in a separate thread with its own event loop to
+    avoid the Windows/uvicorn subprocess-spawn issue with Playwright.
 """
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from crawl4ai import AsyncWebCrawler
 
-import httpx
-from bs4 import BeautifulSoup
-import re
+# Dedicated thread pool for browser-based scraping
+_executor = ThreadPoolExecutor(max_workers=2)
 
-async def scrape_url(url: str, max_redirects=3) -> str:
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    
-    current_url = url
-    redirects_followed = 0
-    
-    async with httpx.AsyncClient(timeout=15, follow_redirects=True, headers=headers) as client:
-        while redirects_followed <= max_redirects:
-            res = await client.get(current_url)
-            res.raise_for_status()
 
-            soup = BeautifulSoup(res.text, "html.parser")
-            
-            # Check for meta refresh
-            meta_refresh = soup.find('meta', attrs={'http-equiv': lambda x: x and x.lower() == 'refresh'})
-            if meta_refresh and meta_refresh.get('content'):
-                content = meta_refresh['content']
-                match = re.search(r'url=([^;]+)', content, re.IGNORECASE)
-                if match:
-                    next_url = match.group(1).strip('\'"')
-                    # Handle relative URLs
-                    if not next_url.startswith('http'):
-                        from urllib.parse import urljoin
-                        next_url = urljoin(current_url, next_url)
-                    current_url = next_url
-                    redirects_followed += 1
-                    continue
-            
-            break
+def _run_crawl(url: str) -> str:
+    """
+    Synchronous wrapper that creates a fresh event loop and runs
+    the async crawler inside it.  This is necessary because Playwright
+    cannot spawn browser sub-processes inside uvicorn's ProactorEventLoop
+    on Windows.
+    """
+    loop = asyncio.new_event_loop()
+    try:
+        async def _crawl():
+            async with AsyncWebCrawler(verbose=False) as crawler:
+                result = await crawler.arun(
+                    url=url,
+                    word_count_threshold=10,
+                    bypass_cache=True,
+                )
+                if not result.success:
+                    raise RuntimeError(
+                        f"Crawl4AI failed for {url}: {result.error_message}"
+                    )
+                return (result.markdown or "")[:100_000]
 
-    # Remove junk
-    for tag in soup(["script", "style", "nav", "footer", "header"]):
-        tag.decompose()
+        return loop.run_until_complete(_crawl())
+    finally:
+        loop.close()
 
-    text = soup.get_text(separator="\n")
 
-    return text[:100000]
+async def scrape_url(url: str) -> str:
+    """
+    Scrape a URL using a headless browser and return clean Markdown.
+
+    Crawl4AI launches a real Chromium instance under the hood, which means:
+      - JavaScript-rendered pages are supported
+      - Cookie consent overlays are bypassed
+      - 403 / bot-detection blocks are avoided (real browser fingerprint)
+
+    The heavy lifting runs in a thread-pool so FastAPI's event loop
+    is never blocked.
+
+    Args:
+        url: The page to scrape.
+
+    Returns:
+        Cleaned page text, capped at 100 000 characters.
+    """
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(_executor, _run_crawl, url)
