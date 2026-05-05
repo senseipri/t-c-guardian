@@ -17,17 +17,13 @@ from langgraph.graph import StateGraph, END
 from backend.graph.state import AgentState
 from backend.graph.nodes import scrape_node, analyze_node
 
-# ── Build the graph ──
 workflow = StateGraph(AgentState)
 
-# Register nodes
 workflow.add_node("scrape", scrape_node)
 workflow.add_node("analyze", analyze_node)
 
-# Wire the linear pipeline
 workflow.set_entry_point("scrape")
 workflow.add_edge("scrape", "analyze")
 workflow.add_edge("analyze", END)
 
-# Compile into a runnable LangGraph application
 app = workflow.compile()

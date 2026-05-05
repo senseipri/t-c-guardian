@@ -19,13 +19,6 @@ from backend.tools.analyzer import analyze_legal_text
 
 
 async def scrape_node(state: AgentState) -> dict:
-    """
-    Node 1: Scrape.
-
-    Fetches the URL from state and converts the page to Markdown.
-    On success, writes markdown_content.
-    On failure, writes error and returns immediately.
-    """
     try:
         markdown = await scrape_url(state["url"])
 
@@ -47,15 +40,7 @@ async def scrape_node(state: AgentState) -> dict:
 
 
 def analyze_node(state: AgentState) -> dict:
-    """
-    Node 2: Analyze.
-
-    Sends the scraped Markdown to the reasoning LLM and extracts
-    structured findings. Short-circuits if a previous node set an error.
-    """
-    # ── Short-circuit on upstream error ──
     if state.get("error"):
-        # Return state unchanged; the error propagates to the API response
         return {"error": state["error"]}
 
     try:

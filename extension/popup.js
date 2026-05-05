@@ -14,7 +14,6 @@
  */
 
 document.getElementById("scanBtn").addEventListener("click", async () => {
-  // ── Grab DOM references ──
   const scanBtn = document.getElementById("scanBtn");
   const loading = document.getElementById("loading");
   const scoreCard = document.getElementById("scoreCard");
@@ -22,7 +21,7 @@ document.getElementById("scanBtn").addEventListener("click", async () => {
   const findingsList = document.getElementById("findingsList");
   const errorMsg = document.getElementById("errorMsg");
 
-  // ── Reset UI to loading state ──
+
   scanBtn.disabled = true;
   scanBtn.textContent = "Scanning…";
   loading.style.display = "block";
@@ -32,7 +31,6 @@ document.getElementById("scanBtn").addEventListener("click", async () => {
   errorMsg.style.display = "none";
 
   try {
-    // ── Step 1: Get the current tab URL ──
     const [tab] = await chrome.tabs.query({
       active: true,
       currentWindow: true,
@@ -44,14 +42,12 @@ document.getElementById("scanBtn").addEventListener("click", async () => {
       );
     }
 
-    // ── Step 2: Call the backend ──
     const response = await fetch("http://localhost:8000/scan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url: tab.url }),
     });
 
-    // Handle HTTP errors (the backend returns 400 with a detail message)
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(
@@ -61,11 +57,9 @@ document.getElementById("scanBtn").addEventListener("click", async () => {
 
     const data = await response.json();
 
-    // ── Step 3: Render the score card ──
     loading.style.display = "none";
     scoreCard.style.display = "block";
 
-    // Color the grade: green for A/B, yellow for C, red for D/F
     const gradeEl = document.getElementById("gradeDisplay");
     gradeEl.textContent = data.grade;
 
@@ -82,11 +76,9 @@ document.getElementById("scanBtn").addEventListener("click", async () => {
     document.getElementById("summaryDisplay").textContent =
       data.summary;
 
-    // ── Step 4: Render findings ──
     if (data.findings && data.findings.length > 0) {
       findingsTitle.style.display = "block";
 
-      // Sort: Critical first, then High, Medium, Low
       const severityOrder = {
         Critical: 0,
         High: 1,
@@ -117,22 +109,16 @@ document.getElementById("scanBtn").addEventListener("click", async () => {
       });
     }
   } catch (err) {
-    // ── Error state ──
     loading.style.display = "none";
     errorMsg.style.display = "block";
     errorMsg.textContent = err.message || "An unexpected error occurred.";
   } finally {
-    // ── Re-enable the button ──
     scanBtn.disabled = false;
     scanBtn.textContent = "Scan This Page";
   }
 });
 
 
-/**
- * Escape HTML entities to prevent XSS from LLM output.
- * The LLM could theoretically return HTML in its "finding" text.
- */
 function escapeHtml(text) {
   const div = document.createElement("div");
   div.textContent = text || "";

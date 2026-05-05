@@ -27,13 +27,9 @@ from backend.graph.workflow import app as graph_app
 app = FastAPI(
     title="T&C Guardian",
     version="1.0.0",
-    description="AI-powered Terms & Conditions scanner",
+    description="Terms & Conditions scanner",
 )
 
-# ── CORS ──
-# Chrome extensions make requests from a chrome-extension:// origin.
-# During development we also allow localhost.  In production, replace
-# the wildcard with your specific extension ID origin.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -50,29 +46,19 @@ class ScanRequest(BaseModel):
 # ── Health check ──
 @app.get("/health")
 async def health():
-    """Simple liveness probe."""
+    
     return {"status": "ok", "service": "tc-guardian"}
 
 
 # ── Main scan endpoint ──
 @app.post("/scan")
 async def scan_url(req: ScanRequest):
-    """
-    Accept a URL, run the LangGraph pipeline (Scrape → Analyze),
-    and return the structured harm report.
-
-    Returns 400 if any pipeline node fails.
-    """
-    # Validate URL minimally
     if not req.url.startswith(("http://", "https://")):
         raise HTTPException(
             status_code=400,
             detail="URL must start with http:// or https://",
         )
 
-    # Invoke the compiled LangGraph
-    # The initial state only needs the url key; all other keys
-    # are populated by the nodes.
     initial_state = {
         "url": req.url,
         "markdown_content": "",

@@ -24,12 +24,6 @@ _executor = ThreadPoolExecutor(max_workers=2)
 
 
 def _run_crawl(url: str) -> str:
-    """
-    Synchronous wrapper that creates a fresh event loop and runs
-    the async crawler inside it.  This is necessary because Playwright
-    cannot spawn browser sub-processes inside uvicorn's ProactorEventLoop
-    on Windows.
-    """
     loop = asyncio.new_event_loop()
     try:
         async def _crawl():
