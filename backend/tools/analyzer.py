@@ -35,7 +35,7 @@ Required JSON format:
   ]
 }
 
-Text to analyze:
+Text to analyze (this contains relevant excerpts extracted from the Terms of Service / Privacy Policy):
 {text}
 """
 

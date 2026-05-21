@@ -16,6 +16,15 @@ Error convention:
 from backend.graph.state import AgentState
 from backend.tools.scraper import scrape_url
 from backend.tools.analyzer import analyze_legal_text
+from backend.tools.chunker import semantic_chunking, retrieve_top_k
+
+# Predefined high-risk legal audit queries for vector search
+TARGET_AUDIT_QUERIES = [
+    "arbitration clause, class action waiver, governing law, and disputes resolution",
+    "data sharing, user tracking, personal data collection, sale to third parties, and privacy",
+    "subscription, auto-renewal, cancellations, fees, billing, billing frequency, and refunds",
+    "intellectual property ownership, content licenses, account deletion, and service termination"
+]
 
 
 async def scrape_node(state: AgentState) -> dict:
@@ -44,7 +53,37 @@ def analyze_node(state: AgentState) -> dict:
         return {"error": state["error"]}
 
     try:
-        analysis = analyze_legal_text(state["markdown_content"])
+        raw_text = state["markdown_content"]
+        word_count = len(raw_text.split())
+        
+        # Word threshold to trigger RAG pipeline (4,000 words ~ 16,000 characters)
+        if word_count >= 4000:
+            print(f"[CHUNKER] Large document detected ({word_count} words). Triggering Semantic Chunking & RAG...")
+            
+            # Step 1: Group sentences into semantically cohesive paragraphs
+            chunks = semantic_chunking(raw_text)
+            
+            if len(chunks) >= 3:
+                # Step 2: Retrieve top 3 relevant chunks per audit category
+                retrieved_chunks = retrieve_top_k(chunks, TARGET_AUDIT_QUERIES, k=3)
+                
+                # Step 3: Combine matches into an optimized context
+                processed_content = "\n\n---\n\n".join(retrieved_chunks)
+                rag_word_count = len(processed_content.split())
+                savings = (1 - (rag_word_count / word_count)) * 100
+                
+                print(f"[RAG] RAG complete. Context reduced from {word_count} to {rag_word_count} words ({savings:.2f}% token savings!).")
+            else:
+                print("[CHUNKER] Warning: Semantic chunking yielded too few chunks. Falling back to full text.")
+                processed_content = raw_text
+        else:
+            print(f"[RAG] Document is small ({word_count} words). Analyzing full text for maximum precision.")
+            processed_content = raw_text
+
+
+        # Call the LLM Analyzer with the optimized content
+        analysis = analyze_legal_text(processed_content)
+        
         return {
             "score": analysis["score"],
             "grade": analysis["grade"],
@@ -54,4 +93,4 @@ def analyze_node(state: AgentState) -> dict:
         }
 
     except Exception as exc:
-        return {"error": f"Analysis error: {str(exc)}"}
+        return {"error": f"Analysis error: {str(exc)}"}
